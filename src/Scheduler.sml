@@ -1,3 +1,8 @@
+(** Copyright (c) 2021 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure Scheduler:
 sig
   val par: (unit -> 'a) * (unit -> 'b) -> 'a * 'b

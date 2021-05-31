@@ -1,3 +1,8 @@
+(** Copyright (c) 2021 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 (** A simple doubly-ended queue. Reasonable interface, but nothing fancy
   * in the implementation yet.
   *

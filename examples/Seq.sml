@@ -1,3 +1,8 @@
+(** Copyright (c) 2021 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 structure Seq =
 struct
   structure A = Array

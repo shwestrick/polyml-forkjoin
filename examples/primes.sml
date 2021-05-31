@@ -1,3 +1,8 @@
+(** Copyright (c) 2021 Sam Westrick
+  *
+  * See the file LICENSE for details.
+  *)
+
 use "../src/Deque.sml";
 use "../src/SimpleRandom.sml";
 use "../src/Scheduler.sml";
