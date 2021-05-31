@@ -1,7 +1,7 @@
 structure Scheduler:
 sig
   val par: (unit -> 'a) * (unit -> 'b) -> 'a * 'b
-  val initialize: unit -> unit
+  val initialize: int -> unit
 end =
 struct
 
@@ -15,34 +15,6 @@ struct
 
   val defaultNumThreads = 1
   val maxNumThreads = 256
-
-  fun parseNumThreads () =
-    let
-      fun err str =
-        raise Fail
-          ("Could not parse number of processors from '--procs " ^ str ^ "'")
-
-      fun loop args =
-        case args of
-          [] => defaultNumThreads
-
-        | "--procs" :: nstr :: args' =>
-            (case Int.fromString nstr of
-              NONE => err nstr
-            | SOME n => n)
-
-        | _ :: args' => loop args'
-
-      val n = loop (CommandLine.arguments ())
-    in
-      if n <= 0 then
-        raise Fail "negative number of threads"
-      else if n > maxNumThreads then
-        raise Fail "too many threads (reconfigure scheduler)"
-      else
-        n
-    end
-
   val numThreads = ref defaultNumThreads
   fun napTime() =
     Time.fromNanoseconds (LargeInt.fromInt (!numThreads * 100))
@@ -178,22 +150,26 @@ struct
       stealLoop 0
     end
 
-  fun initialize () =
-    let
-      val n = parseNumThreads ()
-      val _ = print ("procs " ^ Int.toString n ^ "\n")
+  fun initialize n =
+    if n <= 0 then
+      raise Fail "negative number of threads"
+    else if n > maxNumThreads then
+      raise Fail "too many threads (reconfigure scheduler)"
+    else
+      let
+        val _ = print ("initializing with " ^ Int.toString n ^ " threads\n")
 
-      fun spawnThreads i =
-        if i >= n then ()
-        else
-          ( Thread.fork (fn _ => threadFunc i, [])
-          ; spawnThreads (i+1)
-          )
-    in
-      originalThread := Thread.self ();
-      Thread.setLocal (threadIdTag, 0);
-      numThreads := n;
-      spawnThreads 1
-    end
+        fun spawnThreads i =
+          if i >= n then ()
+          else
+            ( Thread.fork (fn _ => threadFunc i, [])
+            ; spawnThreads (i+1)
+            )
+      in
+        originalThread := Thread.self ();
+        Thread.setLocal (threadIdTag, 0);
+        numThreads := n;
+        spawnThreads 1
+      end
 
 end

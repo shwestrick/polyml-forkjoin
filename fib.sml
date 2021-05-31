@@ -1,3 +1,4 @@
+use "CommandLineArgs.sml";
 use "Deque.sml";
 use "SimpleRandom.sml";
 use "Scheduler.sml";
@@ -13,18 +14,6 @@ fun fib n =
     a + b
   end
 
-fun parseN () =
-  let
-    val default = 39
-    fun loop args =
-      case args of
-        [] => default
-      | "-N" :: nstr :: args' => Option.valOf (Int.fromString nstr)
-      | _ :: args' => loop args'
-  in
-    loop (CommandLine.arguments ())
-  end
-
 fun reportTime f =
   let
     val t0 = Time.now ()
@@ -37,10 +26,14 @@ fun reportTime f =
 
 fun main () =
   let
-    val _ = Scheduler.initialize ()
-
-    val n = parseN ()
+    val procs = CommandLineArgs.parseInt "procs" 1
+    val n = CommandLineArgs.parseInt "N" 39
+    val r = CommandLineArgs.parseInt "repeat" 10
+    val _ = print ("procs " ^ Int.toString procs ^ "\n")
+    val _ = print ("repeat " ^ Int.toString r ^ "\n")
     val _ = print ("N " ^ Int.toString n ^ "\n")
+
+    val _ = Scheduler.initialize procs
 
     fun loop k =
       let
@@ -49,7 +42,7 @@ fun main () =
         if k > 1 then loop (k-1) else result
       end
 
-    val result = loop 40
+    val result = loop r
     val _ = print ("result " ^ Int.toString result ^ "\n")
   in
     ()
