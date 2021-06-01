@@ -7,16 +7,26 @@ structure Scheduler:
 sig
   val par: (unit -> 'a) * (unit -> 'b) -> 'a * 'b
   val initialize: int -> unit
+  val isInitialized: unit -> bool
 end =
 struct
+
+  fun die msg =
+    ( TextIO.output (TextIO.stdErr, msg ^ "\n")
+    ; TextIO.flushOut TextIO.stdErr
+    ; OS.Process.exit OS.Process.failure
+    )
 
   structure Mutex = Thread.Mutex
   structure ConditionVar = Thread.ConditionVar
   structure Thread = Thread.Thread  (** lol nice *)
 
   (** =======================================================================
-    * Parse the number of threads from the command line
+    * Some global data. numThreads is set by `initialize`
     *)
+
+  val isInitializedFlag = ref false
+  val initLock = Mutex.mutex ()
 
   val defaultNumThreads = 1
   val maxNumThreads = 256
@@ -118,7 +128,10 @@ struct
 
   fun par (f: unit -> 'a, g: unit -> 'b) =
     let
-      val myId: int = Option.valOf (Thread.getLocal threadIdTag)
+      val myId: int =
+        Option.valOf (Thread.getLocal threadIdTag)
+        handle Option => die "failed to get ID"
+
       val deq = Vector.sub (deques, myId)
     in
       if Deque.isFull deq then
@@ -155,6 +168,9 @@ struct
       stealLoop 0
     end
 
+  fun isInitialized () =
+    !isInitializedFlag
+
   fun initialize n =
     if n <= 0 then
       raise Fail "negative number of threads"
@@ -162,7 +178,15 @@ struct
       raise Fail "too many threads (reconfigure scheduler)"
     else
       let
-        val _ = print ("initializing with " ^ Int.toString n ^ " threads\n")
+        val _ = Mutex.lock initLock
+        val _ =
+          if not (!isInitializedFlag) then () else
+          ( TextIO.output (TextIO.stdErr, "[ERR] scheduler already initialized\n")
+          ; TextIO.flushOut TextIO.stdErr
+          ; OS.Process.exit OS.Process.failure
+          )
+        val _ =
+          print ("initializing scheduler with " ^ Int.toString n ^ " threads\n")
 
         fun spawnThreads i =
           if i >= n then ()
@@ -174,7 +198,9 @@ struct
         originalThread := Thread.self ();
         Thread.setLocal (threadIdTag, 0);
         numThreads := n;
-        spawnThreads 1
+        spawnThreads 1;
+        isInitializedFlag := true;
+        Mutex.unlock initLock
       end
 
 end

@@ -12,6 +12,8 @@ use "CommandLineArgs.sml";
 use "SeqBasis.sml";
 use "Seq.sml";
 use "TreeMatrix.sml";
+use "Util.sml";
+use "Benchmark.sml";
 
 structure CLA = CommandLineArgs
 
@@ -50,35 +52,14 @@ fun primes n =
  * parse command-line arguments and run
  *)
 
-fun reportTime f =
-  let
-    val t0 = Time.now ()
-    val result = f ()
-    val t1 = Time.now ()
-  in
-    print ("time " ^ Time.fmt 4 (Time.- (t1, t0)) ^ "s\n");
-    result
-  end
-
 fun main () =
   let
-    val procs = CLA.parseInt "procs" 1
     val n = CLA.parseInt "N" (100 * 1000 * 1000)
-    val r = CLA.parseInt "repeat" 10
-    val _ = print ("procs " ^ Int.toString procs ^ "\n")
-    val _ = print ("repeat " ^ Int.toString r ^ "\n")
     val _ = print ("N " ^ Int.toString n ^ "\n")
 
-    val _ = ForkJoin.initialize procs
+    val _ = Benchmark.initialize()
 
-    fun loop k =
-      let
-        val result = reportTime (fn _ => primes n)
-      in
-        if k > 1 then loop (k-1) else result
-      end
-
-    val result = loop r
+    val result = Benchmark.run "primes" (fn _ => primes n)
     val numPrimes = Array.length result
     val _ = print ("number of primes " ^ Int.toString numPrimes ^ "\n")
   in

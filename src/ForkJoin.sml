@@ -8,7 +8,9 @@ sig
   val alloc: int -> 'a array
   val par: (unit -> 'a) * (unit -> 'b) -> 'a * 'b
   val parfor: int -> (int * int) -> (int -> unit) -> unit
+
   val initialize: int -> unit
+  val isInitialized: unit -> bool
 end =
 struct
 

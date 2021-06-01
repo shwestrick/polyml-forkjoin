@@ -8,6 +8,7 @@ sig
     * be called exactly once at program startup.
     *)
   val initialize: int -> unit
+  val isInitialized: unit -> bool
 
   (** Run two functions in parallel and get their results. *)
   val par: (unit -> 'a) * (unit -> 'b) -> 'a * 'b
