@@ -1,5 +1,7 @@
 # polyml-forkjoin
 Nested fork-join parallelism in [Poly/ML](https://github.com/polyml/polyml).
+Implements a standard work-stealing scheduler with a simple interface for
+expressing nested parallelism.
 
 ```sml
 structure ForkJoin:
@@ -54,3 +56,19 @@ fun fib n =
 ```
 
 See `examples/` for more.
+
+## Notes
+
+Poly/ML doesn't appear to have first-class continuations, which can make it
+tricky to implement a good scheduler. This is a common problem in many
+languages.
+
+In this library, I used a trick I like to call "burying the join" which
+I first saw in [ParlayLib](https://github.com/cmuparlay/parlaylib)
+(a vanilla C++ library with a high-performance parallel scheduler).
+The idea is to let processors greedily perform other useful work while
+waiting to synchronize at a join point. This "buries" the join point in
+the processor's stack, delaying it until the processor completes one or more
+full tasks elsewhere. For well-parallelized programs, where the number of
+processors is much less than the available parallelism, this doesn't introduce
+any noticeable slowdown.
