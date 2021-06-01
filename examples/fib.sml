@@ -3,20 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-(* use "../src/Deque.sml";
-use "../src/SimpleRandom.sml";
-use "../src/Scheduler.sml";
-use "../src/ForkJoin.sml"; *)
-
-(* PolyML.make "../ForkJoin"; *)
 PolyML.make "lib";
-
-(* use "CommandLineArgs.sml";
-use "SeqBasis.sml";
-use "Seq.sml";
-use "TreeMatrix.sml";
-use "Util.sml";
-use "Benchmark.sml"; *)
 
 fun sfib n =
   if n <= 1 then n else sfib (n-1) + sfib (n-2)
