@@ -3,7 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-structure CommandLineArgs :
+structure CommandLineArgs_ :
 sig
   (* each takes a key K and a default value D, looks for -K V in the
    * command-line arguments, and returns V if it finds it, or D otherwise. *)

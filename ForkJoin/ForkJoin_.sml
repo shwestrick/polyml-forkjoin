@@ -3,7 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-structure ForkJoin:
+structure ForkJoin_:
 sig
   val alloc: int -> 'a array
   val par: (unit -> 'a) * (unit -> 'b) -> 'a * 'b

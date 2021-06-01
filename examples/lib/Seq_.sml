@@ -3,7 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-structure Seq =
+structure Seq_ =
 struct
   structure A = Array
   structure AS = ArraySlice

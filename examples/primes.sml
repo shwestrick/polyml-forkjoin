@@ -3,19 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-use "../src/Deque.sml";
-use "../src/SimpleRandom.sml";
-use "../src/Scheduler.sml";
-use "../src/ForkJoin.sml";
-
-use "CommandLineArgs.sml";
-use "SeqBasis.sml";
-use "Seq.sml";
-use "TreeMatrix.sml";
-use "Util.sml";
-use "Benchmark.sml";
-
-structure CLA = CommandLineArgs
+PolyML.make "lib";
 
 (* primes: int -> int array
  * generate all primes up to (and including) n *)
@@ -51,6 +39,8 @@ fun primes n =
 (* ==========================================================================
  * parse command-line arguments and run
  *)
+
+structure CLA = CommandLineArgs
 
 fun main () =
   let

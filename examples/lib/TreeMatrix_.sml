@@ -3,7 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-structure TreeMatrix:
+structure TreeMatrix_:
 sig
   (* square matrices of sidelength 2^n matrices only! *)
   datatype matrix =

@@ -3,7 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-structure SeqBasis:
+structure SeqBasis_:
 sig
   type grain = int
 

@@ -32,10 +32,7 @@ end
 
 To use it in your project:
 ```
-use "src/Deque.sml";
-use "src/SimpleRandom.sml";
-use "src/Scheduler.sml";
-use "src/ForkJoin.sml";
+PolyML.make "ForkJoin";
 ```
 
 ## Example

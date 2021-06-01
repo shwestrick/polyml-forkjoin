@@ -3,7 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-structure Benchmark =
+structure Benchmark_ =
 struct
 
   fun getTimes msg n f =

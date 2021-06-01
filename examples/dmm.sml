@@ -3,17 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-use "../src/Deque.sml";
-use "../src/SimpleRandom.sml";
-use "../src/Scheduler.sml";
-use "../src/ForkJoin.sml";
-
-use "CommandLineArgs.sml";
-use "SeqBasis.sml";
-use "Seq.sml";
-use "TreeMatrix.sml";
-use "Util.sml";
-use "Benchmark.sml";
+PolyML.make "lib";
 
 fun main () =
   let

@@ -3,7 +3,7 @@
   * See the file LICENSE for details.
   *)
 
-structure Util:
+structure Util_:
 sig
   val getTime: (unit -> 'a) -> ('a * Time.time)
   val reportTime: (unit -> 'a) -> 'a
