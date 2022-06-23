@@ -80,6 +80,209 @@ struct
       if x < myId then x else x+1
     end
 
+  (** =======================================================================
+    * Fancy CSS
+    *)
+
+  structure CSS:
+  sig
+    val incSurplus: int -> unit
+    val decSurplus: int -> unit
+    val sampleMightHaveSurplus: int -> int option
+    val sleep: int -> unit
+  end =
+  struct
+
+    datatype proc_state = S of
+      { surplus: int ref
+      , asleep: bool ref
+      , cvar: ConditionVar.conditionVar
+      , lock: Mutex.mutex
+      }
+
+    datatype global_state = G of
+      { numSurplus: int ref
+      , numSleep: int ref
+      , lock: Mutex.mutex
+      }
+
+    val globalState: global_state =
+      G {numSurplus = ref 0, numSleep = ref 0, lock = Mutex.mutex ()}
+
+    val states: proc_state vector =
+      Vector.tabulate (maxNumThreads, fn _ =>
+        S { surplus = ref 0
+          , asleep = ref false
+          , cvar = ConditionVar.conditionVar ()
+          , lock = Mutex.mutex ()
+          })
+
+    fun sleep myId =
+      let
+        val S {surplus, asleep, cvar, lock} = Vector.sub (states, myId)
+        val G {numSurplus, numSleep, lock=glock} = globalState
+      in
+        Mutex.lock lock;
+        Mutex.lock glock;
+        if !numSurplus <> 0 then
+          (* don't sleep!! *)
+          ( Mutex.unlock glock
+          ; Mutex.unlock lock
+          )
+        else
+          ( numSleep := !numSleep+1
+          ; Mutex.unlock glock
+          ; asleep := true
+          (* releases lock and waits for signal *)
+          ; print ("[" ^ Int.toString myId ^ "] going to sleep\n")
+          ; ConditionVar.wait (cvar, lock)
+          ; print ("[" ^ Int.toString myId ^ "] woke up\n")
+          )
+      end
+
+
+    fun tryClaimSleeper () =
+      let
+        val n = !numThreads
+        val myId: int =
+          Option.valOf (Thread.getLocal threadIdTag)
+          handle Option => die "failed to get ID"
+
+        fun loop id =
+          if id >= n then NONE
+          else if id = myId then
+            loop (id+1)
+          else
+          let
+            val S {surplus, asleep, cvar, lock} = Vector.sub (states, id)
+          in
+            if not (!asleep) orelse not (Mutex.trylock lock) then
+              loop (id+1)
+            else if not (!asleep) then
+              (Mutex.unlock lock; loop (id+1))
+            else
+              SOME id
+          end
+      in
+        loop 0
+      end
+
+
+    (* should be holding the lock for id *)
+    fun finishWakeSleeper id =
+      let
+        val S {asleep, cvar, lock, ...} = Vector.sub (states, id)
+
+        val myId: int =
+          Option.valOf (Thread.getLocal threadIdTag)
+          handle Option => die "failed to get ID"
+
+        (** could be CAS *)
+        val isAsleep = !asleep;
+        val _ = if isAsleep then asleep := false else ()
+        val _ = Mutex.unlock lock;
+      in
+        if not isAsleep then () else
+          ( print ("[" ^ Int.toString myId ^ "] signalling " ^ Int.toString id ^ "\n")
+          ; ConditionVar.signal cvar
+          )
+      end
+
+
+    fun decSurplus id =
+      let
+        val S {surplus, asleep, cvar, lock} = Vector.sub (states, id)
+
+        (** could be a fetch-and-add *)
+        val _ = Mutex.lock lock
+        val olds = !surplus
+        val _ = surplus := olds-1
+        val _ = Mutex.unlock lock
+
+        val zeroSurplusTransition = (olds = 1)
+      in
+        if not zeroSurplusTransition then () else
+        let
+          val G {numSurplus, lock=glock, ...} = globalState
+        in
+          Mutex.lock glock;
+          numSurplus := !numSurplus - 1;
+          Mutex.unlock glock
+        end
+      end
+
+
+    fun incSurplus id =
+      let
+        val S {surplus, asleep, cvar, lock} = Vector.sub (states, id)
+
+        (** could be a fetch-and-add *)
+        val _ = Mutex.lock lock
+        val olds = !surplus
+        val _ = surplus := olds+1
+        val _ = Mutex.unlock lock
+
+        val nonzeroSurplusTransition = (olds = 0)
+      in
+        if not nonzeroSurplusTransition then () else
+
+        (** TODO: this is wrong. need to announce surplus first,
+          * and THEN try to wake someone?
+          *)
+        let
+          (* takes the lock of a sleeper, if it can find one *)
+          val sleeperToWake = tryClaimSleeper ()
+          val G {numSurplus, numSleep, lock=glock} = globalState
+        in
+          Mutex.lock glock;
+
+          numSurplus := !numSurplus + 1;
+
+          if not (Option.isSome sleeperToWake) then ()
+          else numSleep := !numSleep - 1;
+
+          Mutex.unlock glock;
+
+          case sleeperToWake of
+            NONE => ()
+          | SOME sleeperId => finishWakeSleeper sleeperId
+        end
+      end
+
+    fun sampleMightHaveSurplus myId =
+      let
+        val n = !numThreads
+
+        fun loop attempts =
+          if attempts > 100 then
+            NONE
+          else
+          let
+            val id = randomOtherId myId
+            val S {surplus, asleep, cvar, lock} = Vector.sub (states, id)
+          in
+            if not (Mutex.trylock lock) then
+              loop (attempts+1)
+            else if not (!asleep) andalso !surplus > 0 then
+              ( print ("[" ^ Int.toString myId ^ "] proc " ^ Int.toString id ^ " might have surplus (" ^ Int.toString (!surplus) ^ ")\n")
+              ; Mutex.unlock lock
+              ; SOME id
+              )
+            else
+              ( Mutex.unlock lock
+              ; loop (attempts+1)
+              )
+          end
+      in
+        loop 0
+      end
+
+  end
+
+  (** =======================================================================
+    * Scheduler loops
+    *)
+
   (** Try to do steal cycles elsewhere until resultRef is ready *)
   fun doWorkUntilDone myId resultRef =
     let
@@ -97,13 +300,20 @@ struct
                 *)
               (OS.Process.sleep (napTime()); stealLoop 0)
             else
-              let
-                val friend = randomOtherId myId
-              in
-                case Deque.popTop (Vector.sub (deques, friend)) of
-                  NONE => stealLoop (attempts+1)
-                | SOME (Task t) => (t (); stealLoop 0)
-              end
+              case CSS.sampleMightHaveSurplus myId of
+                NONE => stealLoop (attempts+1)
+              | SOME friend =>
+                  case Deque.popTop (Vector.sub (deques, friend)) of
+                    NONE =>
+                      ( print ("[" ^ Int.toString myId ^ "] failed to steal from " ^ Int.toString friend ^ "\n")
+                      ; stealLoop (attempts+1)
+                      )
+                  | SOME (Task t) =>
+                      ( CSS.decSurplus friend
+                      ; print ("[" ^ Int.toString myId ^ "] sucessfully stole from " ^ Int.toString friend ^ "\n")
+                      ; t ()
+                      ; stealLoop 0
+                      )
     in
       stealLoop 0
     end
@@ -112,6 +322,7 @@ struct
   fun dopar myId deq (f, g) =
     let
       val grr = ref NONE
+      val _ = CSS.incSurplus myId
       val _ = Deque.pushBot (deq, newTask (g, grr))
 
       val fr = result f
@@ -152,18 +363,22 @@ struct
           ; raise Fail "Impossible"
           )
         else if attempts >= !numThreads * 100 then
-          (** Take a little break and let other processors steal for a
-            * moment before trying again.
-            *)
-          (OS.Process.sleep (napTime ()); stealLoop 0)
+          (CSS.sleep myId; stealLoop 0)
         else
-          let
-            val friend = randomOtherId myId
-          in
-            case Deque.popTop (Vector.sub (deques, friend)) of
-              NONE => stealLoop (attempts+1)
-            | SOME (Task t) => (t (); stealLoop 0)
-          end
+          case CSS.sampleMightHaveSurplus myId of
+            NONE => stealLoop (attempts+1)
+          | SOME friend =>
+              case Deque.popTop (Vector.sub (deques, friend)) of
+                NONE =>
+                  ( print ("[" ^ Int.toString myId ^ "] failed to steal from " ^ Int.toString friend ^ "\n")
+                  ; stealLoop (attempts+1)
+                  )
+              | SOME (Task t) =>
+                  ( CSS.decSurplus friend
+                  ; print ("[" ^ Int.toString myId ^ "] sucessfully stole from " ^ Int.toString friend ^ "\n")
+                  ; t ()
+                  ; stealLoop 0
+                  )
     in
       stealLoop 0
     end

@@ -1,0 +1,1 @@
+poly --use fib.sml -procs 4 --eval "main()" > out

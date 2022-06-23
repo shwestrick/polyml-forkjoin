@@ -31,7 +31,7 @@ struct
     in
       ForkJoin.initialize nprocs
     end
-
+(*
   fun stats () =
     let
       val x = PolyML.Statistics.getLocalStats ()
@@ -46,7 +46,7 @@ struct
       pt "nongc-sys  " (#timeNonGCSystem x);
       pi "full-gcs   " (#gcFullGCs x);
       pi "part-gcs   " (#gcPartialGCs x)
-    end
+    end *)
 
   fun run msg f =
     let
@@ -89,7 +89,7 @@ struct
       print ("average " ^ Real.fmt (StringCvt.FIX (SOME 4)) avg ^ "s\n");
       print ("total   " ^ Time.fmt 4 total ^ "s\n");
       print ("end-to-end " ^ Time.fmt 4 endToEnd ^ "s\n");
-      stats ();
+      (* stats (); *)
       result
     end
 
